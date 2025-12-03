@@ -1,29 +1,38 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY;
+// Lưu ý: Trên Vercel, vào Project → Settings → Environment Variables
+// Tạo biến môi trường: GEMINI_API_KEY = <API key của bạn>
+const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.error("API_KEY is not defined in the environment.");
+  // Nếu deploy lên Vercel mà chưa set env thì sẽ báo lỗi rõ ràng
+  throw new Error(
+    "GEMINI_API_KEY is not defined. Hãy vào Vercel → Project Settings → Environment Variables và thêm GEMINI_API_KEY."
+  );
 }
 
-const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key-for-build' });
+// KHÔNG dùng dummy key nữa, luôn yêu cầu phải có API key thực
+const ai = new GoogleGenAI({ apiKey });
 
 /**
  * Edits an image using Gemini 2.5 Flash Image ("Nano Banana").
  */
 export const editImageWithGemini = async (
-  base64Image: string, 
-  prompt: string, 
-  mimeType: string = 'image/png'
+  base64Image: string,
+  prompt: string,
+  mimeType: string = "image/png"
 ): Promise<string> => {
   try {
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const cleanBase64 = base64Image.replace(
+      /^data:image\/(png|jpeg|jpg|webp);base64,/,
+      ""
+    );
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: "gemini-2.5-flash-image",
       contents: {
         parts: [
-          { inlineData: { data: cleanBase64, mimeType: mimeType } },
+          { inlineData: { data: cleanBase64, mimeType } },
           { text: prompt },
         ],
       },
@@ -32,7 +41,9 @@ export const editImageWithGemini = async (
     if (response.candidates && response.candidates[0].content.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData && part.inlineData.data) {
-           return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+          return `data:${
+            part.inlineData.mimeType || "image/png"
+          };base64,${part.inlineData.data}`;
         }
       }
     }
@@ -53,24 +64,31 @@ export const generateMeme = async (
   base64Image?: string
 ): Promise<string> => {
   try {
-    const finalPrompt = `Create a meme image. Caption: "${prompt}". Style: ${style}. ensure the text is legible and funny.`;
-    
+    const finalPrompt = `Create a meme image. Caption: "${prompt}". Style: ${style}. Ensure the text is legible and funny.`;
+
     const parts: any[] = [{ text: finalPrompt }];
 
     if (base64Image) {
-        const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-        parts.unshift({ inlineData: { data: cleanBase64, mimeType: 'image/png' } });
+      const cleanBase64 = base64Image.replace(
+        /^data:image\/(png|jpeg|jpg|webp);base64,/,
+        ""
+      );
+      parts.unshift({
+        inlineData: { data: cleanBase64, mimeType: "image/png" },
+      });
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: "gemini-2.5-flash-image",
       contents: { parts },
     });
 
     if (response.candidates && response.candidates[0].content.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData && part.inlineData.data) {
-           return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+          return `data:${
+            part.inlineData.mimeType || "image/png"
+          };base64,${part.inlineData.data}`;
         }
       }
     }
@@ -84,7 +102,9 @@ export const generateMeme = async (
 /**
  * Generates a Notion-style Personal Profile (HTML code).
  */
-export const generateNotionProfile = async (userInfo: string): Promise<string> => {
+export const generateNotionProfile = async (
+  userInfo: string
+): Promise<string> => {
   try {
     const prompt = `
       Create a single-file HTML (with embedded Tailwind CSS via CDN) for a Personal Profile Page in the style of "Notion" (Minimalist, emoji icons, clean typography, whitespace).
@@ -101,13 +121,13 @@ export const generateNotionProfile = async (userInfo: string): Promise<string> =
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+      model: "gemini-2.5-flash",
+      contents: [{ text: prompt }],
     });
 
-    let text = response.text || "";
-    // Clean up markdown code blocks if present
-    text = text.replace(/```html/g, '').replace(/```/g, '');
+    // Tùy version SDK, có thể là response.text hoặc response.candidates...
+    let text = (response as any).text || "";
+    text = text.replace(/```html/g, "").replace(/```/g, "");
     return text;
   } catch (error) {
     console.error("Profile Gen Error:", error);
@@ -118,7 +138,10 @@ export const generateNotionProfile = async (userInfo: string): Promise<string> =
 /**
  * Rewrites text in a specific celebrity style.
  */
-export const rewriteText = async (text: string, style: string): Promise<string> => {
+export const rewriteText = async (
+  text: string,
+  style: string
+): Promise<string> => {
   try {
     const prompt = `
       Rewrite the following text in the Vietnamese language, mimicking the style of: ${style}.
@@ -137,11 +160,11 @@ export const rewriteText = async (text: string, style: string): Promise<string> 
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+      model: "gemini-2.5-flash",
+      contents: [{ text: prompt }],
     });
 
-    return response.text || "Could not generate text.";
+    return (response as any).text || "Could not generate text.";
   } catch (error) {
     console.error("Rewrite Error:", error);
     throw error;
